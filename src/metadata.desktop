@@ -1,0 +1,15 @@
+[SddmGreeterTheme]
+Name=sddm-theme-axos
+Description=Fork of sddm-astronaut-theme by keyitdev
+Author=Ardox
+Website=https://github.com/axos-project.com
+License=GPL-3.0-or-later
+Type=sddm-theme
+Version=2.0
+ConfigFile=theme.conf
+Screenshot=Previews/astronaut.png
+MainScript=Main.qml
+TranslationsDirectory=translations
+Theme-Id=sddm-theme-axos
+Theme-API=2.0
+QtVersion=6
