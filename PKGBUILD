@@ -1,5 +1,5 @@
 pkgname="sddm-theme-axos"
-pkgver="3.1"
+pkgver="4.0"
 pkgrel="1"
 pkgdesc="sddm theme for AxOS"
 arch=("x86_64")

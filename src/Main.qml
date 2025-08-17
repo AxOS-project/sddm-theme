@@ -1,288 +1,241 @@
-// For AxOS by Ardox https://www.axos-project.com
-// Copyright (C) 2022-2025 Ardox
-// Based on https://github.com/Keyitdev/sddm-astronaut-theme
-// Distributed under the GPLv3+ License https://www.gnu.org/licenses/gpl-3.0.html
-
-import QtQuick 2.15
-import QtQuick.Layouts 1.15
-import QtQuick.Controls 2.15
+import "."
+import QtQuick
+import SddmComponents
 import QtQuick.Effects
 import QtMultimedia
+import "components"
 
-import "Components"
-
-Pane {
+Item {
     id: root
+    state: Config.lockScreenDisplay ? "lockState" : "loginState"
 
-    height: config.ScreenHeight || Screen.height
-    width: config.ScreenWidth || Screen.ScreenWidth
-    padding: config.ScreenPadding
+    // TODO: Add own translations: https://github.com/sddm/sddm/wiki/Localization
+    TextConstants {
+        id: textConstants
+    }
 
-    LayoutMirroring.enabled: config.RightToLeftLayout == "true" ? true : Qt.application.layoutDirection === Qt.RightToLeft
-    LayoutMirroring.childrenInherit: true
+    property bool capsLockOn: false
+    Component.onCompleted: {
+        if (keyboard)
+            capsLockOn = keyboard.capsLock;
+    }
+    onCapsLockOnChanged: {
+        loginScreen.updateCapsLock();
+    }
 
-    palette.window: config.BackgroundColor
-    palette.highlight: config.HighlightBackgroundColor
-    palette.highlightedText: config.HighlightTextColor
-    palette.buttonText: config.HoverSystemButtonsIconsColor
-
-    font.family: config.Font
-    font.pointSize: config.FontSize !== "" ? config.FontSize : parseInt(height / 80) || 13
-    
-    focus: true
-
-    property bool leftleft: config.HaveFormBackground == "true" &&
-                            config.PartialBlur == "false" &&
-                            config.FormPosition == "left" &&
-                            config.BackgroundHorizontalAlignment == "left"
-
-    property bool leftcenter: config.HaveFormBackground == "true" &&
-                              config.PartialBlur == "false" &&
-                              config.FormPosition == "left" &&
-                              config.BackgroundHorizontalAlignment == "center"
-
-    property bool rightright: config.HaveFormBackground == "true" &&
-                              config.PartialBlur == "false" &&
-                              config.FormPosition == "right" &&
-                              config.BackgroundHorizontalAlignment == "right"
-
-    property bool rightcenter: config.HaveFormBackground == "true" &&
-                               config.PartialBlur == "false" &&
-                               config.FormPosition == "right" &&
-                               config.BackgroundHorizontalAlignment == "center"
+    states: [
+        State {
+            name: "lockState"
+            PropertyChanges {
+                target: lockScreen
+                opacity: 1.0
+            }
+            PropertyChanges {
+                target: loginScreen
+                opacity: 0.0
+            }
+            PropertyChanges {
+                target: loginScreen.loginContainer
+                scale: 0.5
+            }
+            PropertyChanges {
+                target: backgroundEffect
+                blurMax: Config.lockScreenBlur
+                brightness: Config.lockScreenBrightness
+                saturation: Config.lockScreenSaturation
+            }
+        },
+        State {
+            name: "loginState"
+            PropertyChanges {
+                target: lockScreen
+                opacity: 0.0
+            }
+            PropertyChanges {
+                target: loginScreen
+                opacity: 1.0
+            }
+            PropertyChanges {
+                target: loginScreen.loginContainer
+                scale: 1.0
+            }
+            PropertyChanges {
+                target: backgroundEffect
+                blurMax: Config.loginScreenBlur
+                brightness: Config.loginScreenBrightness
+                saturation: Config.loginScreenSaturation
+            }
+        }
+    ]
+    transitions: Transition {
+        enabled: Config.enableAnimations
+        PropertyAnimation {
+            duration: 150
+            properties: "opacity"
+        }
+        PropertyAnimation {
+            duration: 400
+            properties: "blurMax"
+        }
+        PropertyAnimation {
+            duration: 400
+            properties: "brightness"
+        }
+        PropertyAnimation {
+            duration: 400
+            properties: "saturation"
+        }
+    }
 
     Item {
-        id: sizeHelper
+        id: mainFrame
+        property variant geometry: screenModel.geometry(screenModel.primary)
+        x: geometry.x
+        y: geometry.y
+        width: geometry.width
+        height: geometry.height
 
-        height: parent.height
-        width: parent.width
-        anchors.fill: parent
-        
-        Rectangle {
-            id: tintLayer
-
-            height: parent.height
-            width: parent.width
-            anchors.fill: parent
-            z: 1
-            color: config.DimBackgroundColor
-            opacity: config.DimBackground
-        }
-
-        Rectangle {
-            id: formBackground
-
-            anchors.fill: form
-            anchors.centerIn: form
-            z: 1
-
-            color: config.FormBackgroundColor
-            visible: config.HaveFormBackground == "true" ? true : false
-            opacity: config.PartialBlur == "true" ? 0.3 : 1
-        }
-
-        LoginForm {
-            id: form
-
-            height: parent.height
-            width: parent.width / 2.5
-            anchors.left: config.FormPosition == "left" ? parent.left : undefined
-            anchors.horizontalCenter: config.FormPosition == "center" ? parent.horizontalCenter : undefined
-            anchors.right: config.FormPosition == "right" ? parent.right : undefined
-            z: 1
-        }
-
-        Loader {
-            id: virtualKeyboard
-            source: "Components/VirtualKeyboard.qml"
-
-            // x * 0.4 = x / 2.5
-            width: config.KeyboardSize == "" ? parent.width * 0.4 : parent.width * config.KeyboardSize
-            anchors.bottom: parent.bottom
-            anchors.left: config.VirtualKeyboardPosition == "left" ? parent.left : undefined;
-            anchors.horizontalCenter: config.VirtualKeyboardPosition == "center" ? parent.horizontalCenter : undefined;
-            anchors.right: config.VirtualKeyboardPosition == "right" ? parent.right : undefined;
-            z: 1
-            
-            state: "hidden"
-            property bool keyboardActive: item ? item.active : false
-
-            function switchState() { state = state == "hidden" ? "visible" : "hidden"}
-            states: [
-                State {
-                    name: "visible"
-                    PropertyChanges {
-                        target: virtualKeyboard
-                        y: root.height - virtualKeyboard.height
-                        opacity: 1
-                    }
-                },
-                State {
-                    name: "hidden"
-                    PropertyChanges {
-                        target: virtualKeyboard
-                        y: root.height - root.height/4
-                        opacity: 0
-                    }
-                }
-            ]
-            transitions: [
-                Transition {
-                    from: "hidden"
-                    to: "visible"
-                    SequentialAnimation {
-                        ScriptAction {
-                            script: {
-                                virtualKeyboard.item.activated = true;
-                                Qt.inputMethod.show();
-                            }
-                        }
-                        ParallelAnimation {
-                            NumberAnimation {
-                                target: virtualKeyboard
-                                property: "y"
-                                duration: 100
-                                easing.type: Easing.OutQuad
-                            }
-                            OpacityAnimator {
-                                target: virtualKeyboard
-                                duration: 100
-                                easing.type: Easing.OutQuad
-                            }
-                        }
-                    }
-                },
-                Transition {
-                    from: "visible"
-                    to: "hidden"
-                    SequentialAnimation {
-                        ParallelAnimation {
-                            NumberAnimation {
-                                target: virtualKeyboard
-                                property: "y"
-                                duration: 100
-                                easing.type: Easing.InQuad
-                            }
-                            OpacityAnimator {
-                                target: virtualKeyboard
-                                duration: 100
-                                easing.type: Easing.InQuad
-                            }
-                        }
-                        ScriptAction {
-                            script: {
-                                virtualKeyboard.item.activated = false;
-                                Qt.inputMethod.hide();
-                            }
-                        }
-                    }
-                }
-            ]
-        }
-        
+        // AnimatedImage { // `.gif`s are seg faulting with multi monitors... QT/SDDM issue?
         Image {
-            id: backgroundPlaceholderImage
-
-            z: 10
-            source: config.BackgroundPlaceholder
-            visible: false
-        }
-
-        AnimatedImage {
+            // Background
             id: backgroundImage
-            
-            MediaPlayer {
-                id: player
-                
-                videoOutput: videoOutput
-                autoPlay: true
-                playbackRate: config.BackgroundSpeed == "" ? 1.0 : config.BackgroundSpeed
-                loops: -1
-                onPlayingChanged: {
-                    console.log("Video started.")
-                    backgroundPlaceholderImage.visible = false;
-                }
+            property string tsource: root.state === "lockState" ? Config.lockScreenBackground : Config.loginScreenBackground
+
+            property bool isVideo: {
+                if (!tsource || tsource.toString().length === 0)
+                    return false;
+                var parts = tsource.toString().split(".");
+                if (parts.length === 0)
+                    return false;
+                var ext = parts[parts.length - 1];
+                return ["avi", "mp4", "mov", "mkv", "m4v", "webm"].indexOf(ext) !== -1;
             }
+            property bool displayColor: root.state === "lockState" && Config.lockScreenUseBackgroundColor || root.state === "loginState" && Config.loginScreenUseBackgroundColor
+            property string placeholder: Config.animatedBackgroundPlaceholder // Idea stolen from astronaut-theme. Not a fan of it, but works...
 
-            VideoOutput {
-                id: videoOutput
-                
-                fillMode: config.CropBackground == "true" ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
-                anchors.fill: parent
-            }
-
-            height: parent.height
-            width: config.HaveFormBackground == "true" && config.FormPosition != "center" && config.PartialBlur != "true" ? parent.width - formBackground.width : parent.width
-            anchors.left: leftleft || leftcenter ? formBackground.right : undefined
-            anchors.right: rightright || rightcenter ? formBackground.left : undefined
-
-            horizontalAlignment: config.BackgroundHorizontalAlignment == "left" ?
-                                 Image.AlignLeft :
-                                 config.BackgroundHorizontalAlignment == "right" ?
-                                 Image.AlignRight : Image.AlignHCenter
-
-            verticalAlignment: config.BackgroundVerticalAlignment == "top" ?
-                               Image.AlignTop :
-                               config.BackgroundVerticalAlignment == "bottom" ?
-                               Image.AlignBottom : Image.AlignVCenter
-
-            speed: config.BackgroundSpeed == "" ? 1.0 : config.BackgroundSpeed
-            paused: config.PauseBackground == "true" ? 1 : 0
-            fillMode: config.CropBackground == "true" ? Image.PreserveAspectCrop : Image.PreserveAspectFit
-            asynchronous: true
+            anchors.fill: parent
+            source: !isVideo ? "backgrounds/" + tsource : ""
             cache: true
-            clip: true
             mipmap: true
-
-            Component.onCompleted:{
-                var fileType = config.Background.substring(config.Background.lastIndexOf(".") + 1)
-                const videoFileTypes = ["avi", "mp4", "mov", "mkv", "m4v", "webm"];
-                if (videoFileTypes.includes(fileType)) {
-                    backgroundPlaceholderImage.visible = true;
-                    player.source = Qt.resolvedUrl(config.Background)
-                    player.play();
+            fillMode: {
+                if (Config.backgroundFillMode === "stretch") {
+                    return Image.Stretch;
+                } else if (Config.backgroundFillMode === "fit") {
+                    return Image.PreserveAspectFit;
+                } else {
+                    return Image.PreserveAspectCrop;
                 }
-                else{
-                    backgroundImage.source = config.background || config.Background
+            }
+
+            function updateVideo() {
+                if (isVideo && tsource.toString().length > 0) {
+                    backgroundVideo.source = Qt.resolvedUrl("backgrounds/" + tsource);
+
+                    if (placeholder.length > 0)
+                        source = "backgrounds/" + placeholder;
+                }
+            }
+
+            onSourceChanged: {
+                updateVideo();
+            }
+            Component.onCompleted: {
+                updateVideo();
+            }
+            onStatusChanged: {
+                if (status === Image.Error) {
+                    if (source !== "backgrounds/skyline.jpg" && source !== "") {
+                        source = "backgrounds/skyline.jpg";
+                    } else if (source === "backgrounds/skyline.jpg") {
+                        // If even default fails, show color background
+                        displayColor = true;
+                    }
+                }
+            }
+
+            Rectangle {
+                id: backgroundColor
+                anchors.fill: parent
+                anchors.margins: 0
+                color: root.state === "lockState" && Config.lockScreenUseBackgroundColor ? Config.lockScreenBackgroundColor : root.state === "loginState" && Config.loginScreenUseBackgroundColor ? Config.loginScreenBackgroundColor : "black"
+                visible: parent.displayColor || (backgroundVideo.visible && parent.placeholder.length === 0)
+            }
+
+            // TODO: This is slow af. Removing the property bindings and doing everything at startup should help.
+            Video {
+                id: backgroundVideo
+                anchors.fill: parent
+                visible: parent.isVideo && !parent.displayColor
+                enabled: visible
+                autoPlay: false
+                loops: MediaPlayer.Infinite
+                muted: true
+                fillMode: {
+                    if (Config.backgroundFillMode === "stretch") {
+                        return VideoOutput.Stretch;
+                    } else if (Config.backgroundFillMode === "fit") {
+                        return VideoOutput.PreserveAspectFit;
+                    } else {
+                        return VideoOutput.PreserveAspectCrop;
+                    }
+                }
+
+                onSourceChanged: {
+                    if (source && source.toString().length > 0) {
+                        backgroundVideo.play();
+                    }
+                }
+                onErrorOccurred: function (error) {
+                    if (error !== MediaPlayer.NoError && (!backgroundImage.placeholder || backgroundImage.placeholder.length === 0)) {
+                        backgroundImage.displayColor = true;
+                    }
+                }
+            }
+
+            // Overkill, but fine...
+            Component.onDestruction: {
+                if (backgroundVideo) {
+                    backgroundVideo.stop();
+                    backgroundVideo.source = "";
                 }
             }
         }
-
-        MouseArea {
-            anchors.fill: backgroundImage
-            onClicked: parent.forceActiveFocus()
-        }
-
-        ShaderEffectSource {
-            id: blurMask
-
-            height: parent.height
-            width: form.width
-            anchors.centerIn: form
-
-            sourceItem: backgroundImage
-            sourceRect: Qt.rect(x,y,width,height)
-            visible: config.FullBlur == "true" || config.PartialBlur == "true" ? true : false
-        }
-
         MultiEffect {
-            id: blur
-            
-            height: parent.height
-
-            // width: config.FullBlur == "true" ? parent.width : form.width
-            // anchors.centerIn: config.FullBlur == "true" ? parent : form
-
-            // This solves problem when FullBlur and HaveFormBackground is set to true but PartialBlur is false and FormPosition isn't center.
-            width: (config.FullBlur == "true" && config.PartialBlur == "false" && config.FormPosition != "center" ) ? parent.width - formBackground.width : config.FullBlur == "true" ? parent.width : form.width 
-            anchors.centerIn: config.FullBlur == "true" ? backgroundImage : form
-
-            source: config.FullBlur == "true" ? backgroundImage : blurMask
-            blurEnabled: true
+            // Background effects
+            id: backgroundEffect
+            source: backgroundImage
+            anchors.fill: parent
+            blurEnabled: backgroundImage.visible && blurMax > 0
+            blur: blurMax > 0 ? 1.0 : 0.0
             autoPaddingEnabled: false
-            blur: config.Blur == "" ? 2.0 : config.Blur
-            blurMax: config.BlurMax == "" ? 48 : config.BlurMax
-            visible: config.FullBlur == "true" || config.PartialBlur == "true" ? true : false
+        }
+
+        Item {
+            id: screenContainer
+            anchors.fill: parent
+            anchors.top: parent.top
+
+            LockScreen {
+                id: lockScreen
+                z: root.state === "lockState" ? 2 : 1 // Fix tooltips from the login screen showing up on top of the lock screen.
+                anchors.fill: parent
+                focus: root.state === "lockState"
+                enabled: root.state === "lockState"
+                onLoginRequested: {
+                    root.state = "loginState";
+                    loginScreen.resetFocus();
+                }
+            }
+            LoginScreen {
+                id: loginScreen
+                z: root.state === "loginState" ? 2 : 1
+                anchors.fill: parent
+                enabled: root.state === "loginState"
+                opacity: 0.0
+                onClose: {
+                    root.state = "lockState";
+                }
+            }
         }
     }
 }

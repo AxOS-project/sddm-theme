@@ -1,15 +1,16 @@
+; AxOS SDDM theme, based on https://github.com/uiriansan/SilentSDDM
+
 [SddmGreeterTheme]
-Name=sddm-theme-axos
-Description=Fork of sddm-astronaut-theme by keyitdev
-Author=Ardox
-Website=https://github.com/axos-project.com
-License=GPL-3.0-or-later
+Name=AxOS
 Type=sddm-theme
-Version=2.0
-ConfigFile=theme.conf
-Screenshot=Previews/astronaut.png
-MainScript=Main.qml
-TranslationsDirectory=translations
-Theme-Id=sddm-theme-axos
+Description=AxOS SDDM theme, based on SilentSDDM
+License=GPL-3.0-or-later
+Version=1.3.0
+Theme-Id=axos
 Theme-API=2.0
+MainScript=Main.qml
+Screenshot=docs/previews/default.png
+TranslationsDirectory=translations
 QtVersion=6
+
+ConfigFile=theme.conf
