@@ -1,241 +1,305 @@
-import "."
 import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
 import SddmComponents
-import QtQuick.Effects
-import QtMultimedia
-import "components"
+import "./components"
 
 Item {
     id: root
-    state: Config.lockScreenDisplay ? "lockState" : "loginState"
+    anchors.fill: parent
 
-    // TODO: Add own translations: https://github.com/sddm/sddm/wiki/Localization
-    TextConstants {
-        id: textConstants
-    }
+    property var detectedUsers: []
+    property var detectedDEs: []
+    property bool wrongPassword: false
+    property int selectedDE: 0
 
-    property bool capsLockOn: false
     Component.onCompleted: {
-        if (keyboard)
-            capsLockOn = keyboard.capsLock;
-    }
-    onCapsLockOnChanged: {
-        loginScreen.updateCapsLock();
+        var users = []
+        for (var i = 0; i < userModel.rowCount(); i++) {
+            users.push(userModel.data(userModel.index(i, 0), Qt.UserRole + 1))
+        }
+        root.detectedUsers = users
+
+        var sessions = []
+        for (var j = 0; j < sessionModel.rowCount(); j++) {
+            sessions.push(sessionModel.data(sessionModel.index(j, 0), Qt.UserRole + 4))
+        }
+        root.detectedDEs = sessions
+
+        userComboBox.currentIndex = Math.max(0, userModel.lastIndex)
+        deComboBox.currentIndex = Math.max(0, sessionModel.lastIndex)
+        root.selectedDE = deComboBox.currentIndex
     }
 
-    states: [
-        State {
-            name: "lockState"
-            PropertyChanges {
-                target: lockScreen
-                opacity: 1.0
-            }
-            PropertyChanges {
-                target: loginScreen
-                opacity: 0.0
-            }
-            PropertyChanges {
-                target: loginScreen.loginContainer
-                scale: 0.5
-            }
-            PropertyChanges {
-                target: backgroundEffect
-                blurMax: Config.lockScreenBlur
-                brightness: Config.lockScreenBrightness
-                saturation: Config.lockScreenSaturation
-            }
-        },
-        State {
-            name: "loginState"
-            PropertyChanges {
-                target: lockScreen
-                opacity: 0.0
-            }
-            PropertyChanges {
-                target: loginScreen
-                opacity: 1.0
-            }
-            PropertyChanges {
-                target: loginScreen.loginContainer
-                scale: 1.0
-            }
-            PropertyChanges {
-                target: backgroundEffect
-                blurMax: Config.loginScreenBlur
-                brightness: Config.loginScreenBrightness
-                saturation: Config.loginScreenSaturation
-            }
+    Item {
+        id: bgWindow
+        anchors.fill: parent
+
+        WallpaperDisplay {
+            id: backgroundImage
+            anchors.fill: parent
+            // source: Config.options.background.wallpaperPath
+            source: Qt.resolvedUrl("backgrounds/SleexOne.png")
         }
-    ]
-    transitions: Transition {
-        enabled: Config.enableAnimations
-        PropertyAnimation {
-            duration: 150
-            properties: "opacity"
+
+        StyledText {
+            id: timeText
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 100
+            color: Appearance.colors.colPrimary
+            text: DateTime.time
+            font.pixelSize: 96
         }
-        PropertyAnimation {
-            duration: 400
-            properties: "blurMax"
-        }
-        PropertyAnimation {
-            duration: 400
-            properties: "brightness"
-        }
-        PropertyAnimation {
-            duration: 400
-            properties: "saturation"
+
+        StyledText {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: timeText.bottom
+            color: Appearance.colors.colOnSurfaceVariant
+            text: DateTime.date
+            font.bold: true
+            font.pixelSize: 32
         }
     }
 
     Item {
-        id: mainFrame
-        property variant geometry: screenModel.geometry(screenModel.primary)
-        x: geometry.x
-        y: geometry.y
-        width: geometry.width
-        height: geometry.height
-
-        // AnimatedImage { // `.gif`s are seg faulting with multi monitors... QT/SDDM issue?
-        Image {
-            // Background
-            id: backgroundImage
-            property string tsource: root.state === "lockState" ? Config.lockScreenBackground : Config.loginScreenBackground
-
-            property bool isVideo: {
-                if (!tsource || tsource.toString().length === 0)
-                    return false;
-                var parts = tsource.toString().split(".");
-                if (parts.length === 0)
-                    return false;
-                var ext = parts[parts.length - 1];
-                return ["avi", "mp4", "mov", "mkv", "m4v", "webm"].indexOf(ext) !== -1;
-            }
-            property bool displayColor: root.state === "lockState" && Config.lockScreenUseBackgroundColor || root.state === "loginState" && Config.loginScreenUseBackgroundColor
-            property string placeholder: Config.animatedBackgroundPlaceholder // Idea stolen from astronaut-theme. Not a fan of it, but works...
-
-            anchors.fill: parent
-            source: !isVideo ? "backgrounds/" + tsource : ""
-            cache: true
-            mipmap: true
-            fillMode: {
-                if (Config.backgroundFillMode === "stretch") {
-                    return Image.Stretch;
-                } else if (Config.backgroundFillMode === "fit") {
-                    return Image.PreserveAspectFit;
-                } else {
-                    return Image.PreserveAspectCrop;
-                }
-            }
-
-            function updateVideo() {
-                if (isVideo && tsource.toString().length > 0) {
-                    backgroundVideo.source = Qt.resolvedUrl("backgrounds/" + tsource);
-
-                    if (placeholder.length > 0)
-                        source = "backgrounds/" + placeholder;
-                }
-            }
-
-            onSourceChanged: {
-                updateVideo();
-            }
-            Component.onCompleted: {
-                updateVideo();
-            }
-            onStatusChanged: {
-                if (status === Image.Error) {
-                    if (source !== "backgrounds/skyline.jpg" && source !== "") {
-                        source = "backgrounds/skyline.jpg";
-                    } else if (source === "backgrounds/skyline.jpg") {
-                        // If even default fails, show color background
-                        displayColor = true;
-                    }
-                }
-            }
-
-            Rectangle {
-                id: backgroundColor
-                anchors.fill: parent
-                anchors.margins: 0
-                color: root.state === "lockState" && Config.lockScreenUseBackgroundColor ? Config.lockScreenBackgroundColor : root.state === "loginState" && Config.loginScreenUseBackgroundColor ? Config.loginScreenBackgroundColor : "black"
-                visible: parent.displayColor || (backgroundVideo.visible && parent.placeholder.length === 0)
-            }
-
-            // TODO: This is slow af. Removing the property bindings and doing everything at startup should help.
-            Video {
-                id: backgroundVideo
-                anchors.fill: parent
-                visible: parent.isVideo && !parent.displayColor
-                enabled: visible
-                autoPlay: false
-                loops: MediaPlayer.Infinite
-                muted: true
-                fillMode: {
-                    if (Config.backgroundFillMode === "stretch") {
-                        return VideoOutput.Stretch;
-                    } else if (Config.backgroundFillMode === "fit") {
-                        return VideoOutput.PreserveAspectFit;
-                    } else {
-                        return VideoOutput.PreserveAspectCrop;
-                    }
-                }
-
-                onSourceChanged: {
-                    if (source && source.toString().length > 0) {
-                        backgroundVideo.play();
-                    }
-                }
-                onErrorOccurred: function (error) {
-                    if (error !== MediaPlayer.NoError && (!backgroundImage.placeholder || backgroundImage.placeholder.length === 0)) {
-                        backgroundImage.displayColor = true;
-                    }
-                }
-            }
-
-            // Overkill, but fine...
-            Component.onDestruction: {
-                if (backgroundVideo) {
-                    backgroundVideo.stop();
-                    backgroundVideo.source = "";
-                }
-            }
-        }
-        MultiEffect {
-            // Background effects
-            id: backgroundEffect
-            source: backgroundImage
-            anchors.fill: parent
-            blurEnabled: backgroundImage.visible && blurMax > 0
-            blur: blurMax > 0 ? 1.0 : 0.0
-            autoPaddingEnabled: false
-        }
+        id: loginWindow
+        anchors.fill: parent
 
         Item {
-            id: screenContainer
-            anchors.fill: parent
-            anchors.top: parent.top
+            id: bottomBar
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 50
+            height: 70
 
-            LockScreen {
-                id: lockScreen
-                z: root.state === "lockState" ? 2 : 1 // Fix tooltips from the login screen showing up on top of the lock screen.
-                anchors.fill: parent
-                focus: root.state === "lockState"
-                enabled: root.state === "lockState"
-                onLoginRequested: {
-                    root.state = "loginState";
-                    loginScreen.resetFocus();
+            // Center Pill: Password Input
+            Rectangle {
+                id: passwordContainer
+                anchors.centerIn: parent
+                width: 400
+                height: 70
+                radius: Appearance.rounding.full
+                color: Appearance.colors.colLayer0
+
+                property int shakeOffset: 0
+                transform: Translate { x: passwordContainer.shakeOffset }
+
+                SequentialAnimation {
+                    id: shakeAnim
+                    NumberAnimation { target: passwordContainer; property: "shakeOffset"; to: -10; duration: 50 }
+                    NumberAnimation { target: passwordContainer; property: "shakeOffset"; to: 10; duration: 50 }
+                    NumberAnimation { target: passwordContainer; property: "shakeOffset"; to: -5; duration: 50 }
+                    NumberAnimation { target: passwordContainer; property: "shakeOffset"; to: 5; duration: 50 }
+                    NumberAnimation { target: passwordContainer; property: "shakeOffset"; to: 0; duration: 50 }
+                }
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 8
+
+                    RippleButton {
+                        colBackground: Appearance.colors.colLayer1
+                        Layout.fillHeight: true
+                        implicitWidth: height
+                        buttonRadius: Appearance.rounding.full
+
+                        MaterialSymbol {
+                            text: passwordInput.echoMode === TextInput.Password ? "visibility" : "visibility_off"
+                            iconSize: 20
+                            color: Appearance.colors.colOnLayer0
+                            anchors.centerIn: parent
+                        }
+
+                        onClicked: {
+                            passwordInput.echoMode = passwordInput.echoMode === TextInput.Password ? TextInput.Normal : TextInput.Password
+                            passwordInput.forceActiveFocus()
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillHeight: true
+                        Layout.fillWidth: true
+                        color: Appearance.colors.colLayer2
+                        radius: Appearance.rounding.full
+                        clip: true
+                        
+                        border.color: root.wrongPassword ? Appearance.m3colors.m3error : "transparent"
+                        border.width: 1
+
+                        StyledTextInput {
+                            id: passwordInput
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            horizontalAlignment: TextInput.AlignHCenter
+                            verticalAlignment: TextInput.AlignVCenter
+                            focus: true
+                            color: Appearance.colors.colOnLayer2
+                            font.pixelSize: 15
+                            echoMode: TextInput.Password
+                            inputMethodHints: Qt.ImhSensitiveData
+
+                            onTextChanged: root.wrongPassword = false
+                            onAccepted: submitLogin()
+
+                            StyledText {
+                                anchors.centerIn: parent
+                                text: qsTr("Enter password")
+                                color: Appearance.colors.colSubtext
+                                font.pixelSize: 15
+                                visible: parent.text.length === 0
+                            }
+                        }
+
+                        NumberAnimation on border.color {
+                            duration: 300
+                            easing.type: Easing.InOutQuad
+                        }
+                    }
+
+                    RippleButton {
+                        id: loginButton
+                        colBackground: Appearance.colors.colPrimary
+                        colBackgroundHover: Appearance.colors.colPrimaryContainer
+                        Layout.fillHeight: true
+                        implicitWidth: height
+                        buttonRadius: Appearance.rounding.full
+
+                        MaterialSymbol {
+                            text: "arrow_forward"
+                            iconSize: 24
+                            color: Appearance.colors.colOnPrimary
+                            anchors.centerIn: parent
+                        }
+
+                        onClicked: submitLogin()
+                    }
                 }
             }
-            LoginScreen {
-                id: loginScreen
-                z: root.state === "loginState" ? 2 : 1
-                anchors.fill: parent
-                enabled: root.state === "loginState"
-                opacity: 0.0
-                onClose: {
-                    root.state = "lockState";
+
+            // Left Pill: User & Session
+            Rectangle {
+                id: leftPill
+                anchors.right: passwordContainer.left
+                anchors.rightMargin: 15
+                anchors.verticalCenter: parent.verticalCenter
+                height: 70
+                width: leftLayout.implicitWidth + 24 
+                radius: Appearance.rounding.full
+                color: Appearance.colors.colLayer0
+
+                RowLayout {
+                    id: leftLayout
+                    anchors.centerIn: parent
+                    spacing: 4
+
+                    IconComboBox {
+                        id: userComboBox
+                        icon: "account_circle"
+                        model: root.detectedUsers
+                    }
+
+                    IconComboBox {
+                        id: deComboBox
+                        icon: "call_to_action" 
+                        model: root.detectedDEs
+                        onCurrentIndexChanged: {
+                            root.selectedDE = deComboBox.currentIndex
+                        }
+                    }
                 }
             }
+
+            // Right Pill: Power Controls
+            Rectangle {
+                id: sysControls
+                anchors.left: passwordContainer.right
+                anchors.leftMargin: 15
+                anchors.verticalCenter: parent.verticalCenter
+                height: 70
+                width: suspendButton.width + rebootButton.width + poweroffButton.width + 40
+                color: Appearance.colors.colLayer0
+                radius: Appearance.rounding.full
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 10
+                    spacing: 10
+
+                    RippleButton {
+                        id: suspendButton
+                        colBackground: Appearance.colors.colLayer1
+                        Layout.fillHeight: true
+                        implicitWidth: height
+                        buttonRadius: Appearance.rounding.full
+                        MaterialSymbol {
+                            text: "bedtime"
+                            iconSize: 20
+                            color: Appearance.colors.colOnLayer0
+                            anchors.centerIn: parent
+                        }
+                        onClicked: sddm.suspend()
+                    }
+                    
+                    RippleButton {
+                        id: rebootButton
+                        colBackground: Appearance.colors.colLayer1
+                        Layout.fillHeight: true
+                        implicitWidth: height
+                        buttonRadius: Appearance.rounding.full
+                        MaterialSymbol {
+                            text: "restart_alt"
+                            iconSize: 20
+                            anchors.centerIn: parent
+                            color: Appearance.colors.colOnLayer0
+                        }
+                        onClicked: sddm.reboot()
+                    }
+
+                    RippleButton {
+                        id: poweroffButton
+                        colBackground: Appearance.colors.colLayer1
+                        colBackgroundHover: Appearance.colors.colErrorContainer
+                        Layout.fillHeight: true
+                        implicitWidth: height
+                        buttonRadius: Appearance.rounding.full
+                        MaterialSymbol {
+                            text: "power_settings_new"
+                            iconSize: 20
+                            anchors.centerIn: parent
+                            color: Appearance.colors.colOnLayer0
+                        }
+                        onClicked: sddm.powerOff()
+                    }
+                }
+            }
+        }
+    }
+
+    function submitLogin() {
+        if (passwordInput.text.length > 0) {
+            loginButton.enabled = false
+            var user = root.detectedUsers[userComboBox.currentIndex] || ""
+            sddm.login(user, passwordInput.text, deComboBox.currentIndex)
+        }
+    }
+
+    Connections {
+        target: sddm
+
+        function onLoginFailed() {
+            passwordInput.text = ""
+            loginButton.enabled = true
+            root.wrongPassword = true
+            shakeAnim.start()
+            passwordInput.forceActiveFocus()
+        }
+
+        function onLoginSucceeded() {
+            // Nothing to do here
         }
     }
 }

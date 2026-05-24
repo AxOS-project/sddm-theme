@@ -1,2 +1,12 @@
-singleton Config Config.qml
-singleton Languages Languages.qml
+module components
+
+IconComboBox IconComboBox.qml
+MaterialSymbol MaterialSymbol.qml
+RippleButton RippleButton.qml
+StyledTextInput StyledTextInput.qml
+StyledText StyledText.qml
+WallpaperDisplay WallpaperDisplay.qml
+
+singleton Appearance common/Appearance.qml
+singleton DateTime common/DateTime.qml
+singleton ColorUtils common/ColorUtils.qml

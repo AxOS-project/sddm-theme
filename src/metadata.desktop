@@ -1,9 +1,9 @@
-; AxOS SDDM theme, based on https://github.com/uiriansan/SilentSDDM
+; AxOS SDDM theme
 
 [SddmGreeterTheme]
 Name=AxOS
 Type=sddm-theme
-Description=AxOS SDDM theme, based on SilentSDDM
+Description=AxOS SDDM theme
 License=GPL-3.0-or-later
 Version=1.3.0
 Theme-Id=axos
