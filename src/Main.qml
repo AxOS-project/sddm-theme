@@ -3,7 +3,8 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
 import SddmComponents
-import "./components"
+import SleexUiKit.Widgets
+import SleexUiKit.Appearance
 
 Item {
     id: root
@@ -40,25 +41,26 @@ Item {
             id: backgroundImage
             anchors.fill: parent
             // source: Config.options.background.wallpaperPath
-            source: Qt.resolvedUrl("backgrounds/SleexOne.png")
+            // TODO: make this dynamic based on a config file
+            source: Qt.resolvedUrl("backgrounds/twentySix.jpg")
         }
 
         StyledText {
             id: timeText
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: 100
+            anchors.topMargin: 150
+            font.bold: true
             color: Appearance.colors.colPrimary
-            text: DateTime.time
-            font.pixelSize: 96
+            text: Qt.formatTime(new Date(), Qt.locale().timeFormat(Locale.ShortFormat))
+            font.pixelSize: 100
         }
 
         StyledText {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: timeText.bottom
             color: Appearance.colors.colOnSurfaceVariant
-            text: DateTime.date
-            font.bold: true
+            text: Qt.formatDate(new Date(), Qt.locale().dateFormat(Locale.LongFormat))
             font.pixelSize: 32
         }
     }

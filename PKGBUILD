@@ -1,9 +1,9 @@
 pkgname="sddm-theme-axos"
-pkgver="5.0"
-pkgrel="2"
+pkgver="5.1"
+pkgrel="1"
 pkgdesc="sddm theme for AxOS"
 arch=("x86_64")
-depends=("sddm" "qt5-quickcontrols" "qt5-graphicaleffects" "quickshell-git")
+depends=("sddm" "sleex-ui-kit" "quickshell")
 
 package(){
    mkdir -p ${pkgdir}/usr/share/sddm/themes/axos
