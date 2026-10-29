@@ -15,6 +15,16 @@ Item {
     property bool wrongPassword: false
     property int selectedDE: 0
 
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: {
+            var now = new Date()
+            timeText.text = Qt.formatTime(now, Qt.locale().timeFormat(Locale.ShortFormat))
+        }
+    }
+
     Component.onCompleted: {
         var users = []
         for (var i = 0; i < userModel.rowCount(); i++) {
